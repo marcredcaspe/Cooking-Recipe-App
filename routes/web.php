@@ -24,6 +24,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Meal details page
     Route::get('/meal/{mealId}', [MealController::class, 'show'])->name('meal.details');
+
+    // Recipe CRUD operations
+    Route::post('/recipes', [MealController::class, 'storeRecipe'])->name('recipes.store');
+    Route::put('/recipes/{mealId}', [MealController::class, 'updateRecipe'])->name('recipes.update');
+    Route::delete('/recipes/{mealId}', [MealController::class, 'deleteRecipe'])->name('recipes.delete');
 });
 
 // Legacy/test routes - PROTECTED (require authentication)

@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Models\UserFavorite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -32,8 +34,148 @@ class MealController extends Controller
             ->where('meal_id', $mealId)
             ->firstOrFail();
 
+        $canEdit = Auth::check() && ($meal->user_id === Auth::id() || $meal->source === 'USER');
+
         return Inertia::render('MealDetails', [
             'meal' => $meal,
+            'canEdit' => $canEdit,
+        ]);
+    }
+
+    /**
+     * Store a new recipe created by the user.
+     */
+    public function storeRecipe(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'thumbnail' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'thumbnail_url' => ['nullable', 'string', 'max:255'],
+            'ingredients' => ['required', 'string'],
+            'steps' => ['required', 'string'],
+        ]);
+
+        $user = Auth::user();
+
+        // Handle image upload
+        $thumbnailPath = null;
+        if ($request->hasFile('thumbnail')) {
+            $storedPath = $request->file('thumbnail')->store('recipes', 'public');
+            $thumbnailPath = asset('storage/' . $storedPath);
+        } elseif (!empty($data['thumbnail_url'])) {
+            $thumbnailPath = $data['thumbnail_url'];
+        }
+
+        $ingredients = $this->parseLines($data['ingredients']);
+        $steps = $this->parseLines($data['steps']);
+
+        $this->ensureList($ingredients, 'ingredients');
+        $this->ensureList($steps, 'steps');
+
+        $meal = DB::transaction(function () use ($data, $ingredients, $steps, $thumbnailPath, $user) {
+            $meal = $this->persistMeal([
+                'meal_id' => Str::upper(Str::random(10)),
+                'title' => $data['title'],
+                'thumbnail' => $thumbnailPath,
+                'source' => 'USER',
+                'user_id' => $user->id,
+            ]);
+            $this->syncIngredients($meal, $ingredients);
+            $this->syncSteps($meal, $steps);
+
+            return $meal;
+        });
+
+        return redirect()->route('meal.details', $meal->meal_id)->with('flash', [
+            'message' => "Recipe '{$meal->title}' created successfully!",
+        ]);
+    }
+
+    /**
+     * Update an existing recipe.
+     */
+    public function updateRecipe(Request $request, string $mealId): RedirectResponse
+    {
+        $meal = Meal::where('meal_id', $mealId)->firstOrFail();
+        $user = Auth::user();
+
+        // Check if user can edit this recipe
+        if ($meal->user_id !== $user->id || $meal->source !== 'USER') {
+            abort(403, 'You do not have permission to edit this recipe.');
+        }
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'thumbnail' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'thumbnail_url' => ['nullable', 'string', 'max:255'],
+            'ingredients' => ['required', 'string'],
+            'steps' => ['required', 'string'],
+        ]);
+
+        // Handle image upload
+        $thumbnailPath = $meal->thumbnail; // Keep existing thumbnail by default
+        if ($request->hasFile('thumbnail')) {
+            // Delete old thumbnail if it exists and is stored locally
+            if ($meal->thumbnail && (strpos($meal->thumbnail, '/storage/') !== false || strpos($meal->thumbnail, 'storage/') !== false)) {
+                $oldPath = str_replace([asset('storage/'), '/storage/', 'storage/'], '', $meal->thumbnail);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $storedPath = $request->file('thumbnail')->store('recipes', 'public');
+            $thumbnailPath = asset('storage/' . $storedPath);
+        } elseif (!empty($data['thumbnail_url'])) {
+            $thumbnailPath = $data['thumbnail_url'];
+        }
+
+        $ingredients = $this->parseLines($data['ingredients']);
+        $steps = $this->parseLines($data['steps']);
+
+        $this->ensureList($ingredients, 'ingredients');
+        $this->ensureList($steps, 'steps');
+
+        DB::transaction(function () use ($meal, $data, $ingredients, $steps, $thumbnailPath) {
+            $meal->update([
+                'title' => $data['title'],
+                'thumbnail' => $thumbnailPath,
+            ]);
+            $this->syncIngredients($meal, $ingredients);
+            $this->syncSteps($meal, $steps);
+        });
+
+        return redirect()->route('meal.details', $meal->meal_id)->with('flash', [
+            'message' => "Recipe '{$meal->title}' updated successfully!",
+        ]);
+    }
+
+    /**
+     * Delete a recipe.
+     */
+    public function deleteRecipe(Request $request, string $mealId): RedirectResponse
+    {
+        $meal = Meal::where('meal_id', $mealId)->firstOrFail();
+        $user = Auth::user();
+
+        // Check if user can delete this recipe
+        if ($meal->user_id !== $user->id || $meal->source !== 'USER') {
+            abort(403, 'You do not have permission to delete this recipe.');
+        }
+
+        DB::transaction(function () use ($meal) {
+            // Delete thumbnail if it exists and is stored locally
+            if ($meal->thumbnail && strpos($meal->thumbnail, '/storage/') !== false) {
+                $oldPath = str_replace('/storage/', '', $meal->thumbnail);
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            // Delete related ingredients and steps (cascade should handle this, but being explicit)
+            $meal->ingredients()->delete();
+            $meal->steps()->delete();
+
+            // Delete the meal
+            $meal->delete();
+        });
+
+        return redirect()->route('dashboard')->with('flash', [
+            'message' => 'Recipe deleted successfully.',
         ]);
     }
 

@@ -4,10 +4,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import route from '@/route';
 
-export default function Dashboard({ auth, favorites, userMeals, flash, randomRecipe }) {
+export default function Dashboard({ auth, favorites, userMeals, flash, randomRecipe, dateFilter = '' }) {
     const { delete: destroy } = useForm();
     const [showRandomRecipe, setShowRandomRecipe] = useState(!!randomRecipe);
     const [isAddingFavorite, setIsAddingFavorite] = useState(false);
+    const [showRecipeForm, setShowRecipeForm] = useState(false);
+
+    const recipeForm = useForm({
+        title: '',
+        thumbnail: null,
+        thumbnail_url: '',
+        ingredients: '',
+        steps: '',
+    }, {
+        transform: (data) => {
+            // Remove thumbnail if it's null, keep it if it's a File
+            const transformed = { ...data };
+            if (!(transformed.thumbnail instanceof File)) {
+                delete transformed.thumbnail;
+            }
+            return transformed;
+        },
+    });
 
     const handleRemoveFavorite = (mealId) => {
         if (confirm('Are you sure you want to remove this favorite?')) {
@@ -34,6 +52,26 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                 onFinish: () => setIsAddingFavorite(false),
             });
         }
+    };
+
+    const handleSubmitRecipe = (e) => {
+        e.preventDefault();
+        // Only use FormData if there's a file to upload, otherwise send as JSON
+        const hasFile = recipeForm.data.thumbnail instanceof File;
+        recipeForm.post(route('recipes.store'), {
+            preserveScroll: true,
+            forceFormData: hasFile,
+            onSuccess: () => {
+                recipeForm.reset();
+                setShowRecipeForm(false);
+            },
+        });
+    };
+
+    const handleDateFilterChange = (filter) => {
+        router.get(route('dashboard'), { date_filter: filter }, {
+            preserveScroll: true,
+        });
     };
 
     return (
@@ -68,6 +106,137 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                         )}
                     </AnimatePresence>
 
+                    {/* Add Recipe Form Section */}
+                    <div className="mb-8">
+                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-2xl font-bold text-gray-900">Add New Recipe</h2>
+                                    <motion.button
+                                        onClick={() => setShowRecipeForm(!showRecipeForm)}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                                    >
+                                        {showRecipeForm ? 'Cancel' : 'Add Recipe'}
+                                    </motion.button>
+                                </div>
+
+                                <AnimatePresence>
+                                    {showRecipeForm && (
+                                        <motion.form
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            onSubmit={handleSubmitRecipe}
+                                            className="mt-6 space-y-4"
+                                        >
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Recipe Title *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={recipeForm.data.title}
+                                                    onChange={(e) => recipeForm.setData('title', e.target.value)}
+                                                    className="w-full rounded border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                                                    required
+                                                />
+                                                {recipeForm.errors.title && (
+                                                    <p className="text-red-500 text-sm mt-1">{recipeForm.errors.title}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Recipe Picture (Optional)
+                                                </label>
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => recipeForm.setData('thumbnail', e.target.files[0])}
+                                                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                    />
+                                                    <p className="text-xs text-gray-500">Or enter image URL:</p>
+                                                    <input
+                                                        type="text"
+                                                        value={recipeForm.data.thumbnail_url}
+                                                        onChange={(e) => recipeForm.setData('thumbnail_url', e.target.value)}
+                                                        placeholder="https://example.com/image.jpg"
+                                                        className="w-full rounded border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
+                                                    />
+                                                </div>
+                                                {recipeForm.errors.thumbnail && (
+                                                    <p className="text-red-500 text-sm mt-1">{recipeForm.errors.thumbnail}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Ingredients *
+                                                </label>
+                                                <textarea
+                                                    value={recipeForm.data.ingredients}
+                                                    onChange={(e) => recipeForm.setData('ingredients', e.target.value)}
+                                                    placeholder="Enter one ingredient per line&#10;e.g.&#10;2 cups flour&#10;1 tsp salt&#10;3 eggs"
+                                                    className="w-full rounded border border-gray-300 px-3 py-2 min-h-24 focus:border-indigo-500 focus:outline-none"
+                                                    required
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Enter one ingredient per line.</p>
+                                                {recipeForm.errors.ingredients && (
+                                                    <p className="text-red-500 text-sm mt-1">{recipeForm.errors.ingredients}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Instructions *
+                                                </label>
+                                                <textarea
+                                                    value={recipeForm.data.steps}
+                                                    onChange={(e) => recipeForm.setData('steps', e.target.value)}
+                                                    placeholder="Enter one step per line&#10;e.g.&#10;Preheat oven to 375°F&#10;Mix dry ingredients&#10;Bake for 30 minutes"
+                                                    className="w-full rounded border border-gray-300 px-3 py-2 min-h-24 focus:border-indigo-500 focus:outline-none"
+                                                    required
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Enter one step per line.</p>
+                                                {recipeForm.errors.steps && (
+                                                    <p className="text-red-500 text-sm mt-1">{recipeForm.errors.steps}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="flex space-x-2">
+                                                <motion.button
+                                                    type="submit"
+                                                    disabled={recipeForm.processing}
+                                                    whileHover={{ scale: recipeForm.processing ? 1 : 1.05 }}
+                                                    whileTap={{ scale: recipeForm.processing ? 1 : 0.95 }}
+                                                    className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {recipeForm.processing ? 'Creating...' : 'Create Recipe'}
+                                                </motion.button>
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        recipeForm.reset();
+                                                        setShowRecipeForm(false);
+                                                    }}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                                                >
+                                                    Cancel
+                                                </motion.button>
+                                            </div>
+                                        </motion.form>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Random Recipe Section */}
                     <div className="mb-8">
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -80,7 +249,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                         whileTap={{ scale: 0.95 }}
                                         className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                                     >
-                                        🎲 Get Random Recipe
+                                        Get Random Recipe
                                     </motion.button>
                                 </div>
 
@@ -126,7 +295,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                         whileTap={{ scale: isAddingFavorite ? 1 : 0.95 }}
                                                         className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        {isAddingFavorite ? 'Adding...' : '⭐ Add to Favorites'}
+                                                        {isAddingFavorite ? 'Adding...' : 'Add to Favorites'}
                                                     </motion.button>
                                                     {randomRecipe.youtube && (
                                                         <a
@@ -135,7 +304,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                             rel="noopener noreferrer"
                                                             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                                                         >
-                                                            📺 Watch on YouTube
+                                                            Watch on YouTube
                                                         </a>
                                                     )}
                                                 </div>
@@ -195,7 +364,23 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
 
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
-                            <h2 className="text-2xl font-bold mb-4">My Favorite Recipes</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-2xl font-bold">My Favorite Recipes</h2>
+                                <div className="flex items-center space-x-2">
+                                    <label className="text-sm font-medium text-gray-700">Filter by date:</label>
+                                    <select
+                                        value={dateFilter}
+                                        onChange={(e) => handleDateFilterChange(e.target.value)}
+                                        className="rounded border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                                    >
+                                        <option value="">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                        <option value="year">This Year</option>
+                                    </select>
+                                </div>
+                            </div>
 
                             {favorites && favorites.length > 0 ? (
                                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

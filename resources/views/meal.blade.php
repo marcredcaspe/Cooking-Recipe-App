@@ -136,7 +136,12 @@
                 @forelse ($meals as $meal)
                     <tr>
                         <td>{{ $meal->meal_id }}</td>
-                        <td>{{ $meal->title }}</td>
+                        <td>
+                        {{ $meal->title }}<br>
+                        @if($meal->thumbnail)
+                            <img src="{{ asset(ltrim($meal->thumbnail, '/')) }}" alt="{{ $meal->title }}" style="max-width:100px; margin-top:5px;">
+                         @endif
+                        </td>
                         <td>{{ $meal->source }}</td>
                         <td>{{ optional($meal->creator)->name ?? 'N/A' }}</td>
                         <td>

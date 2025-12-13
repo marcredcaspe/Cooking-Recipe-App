@@ -16,20 +16,35 @@ class UserContentController extends Controller
     /**
      * Display the user's dashboard with their favorites.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $user = Auth::user();
 
+        $favoritesQuery = UserFavorite::where('user_id', $user->id)
+            ->with(['meal.ingredients', 'meal.steps']);
+
+        // Filter by date if provided
+        if ($request->has('date_filter')) {
+            $dateFilter = $request->input('date_filter');
+            if ($dateFilter === 'today') {
+                $favoritesQuery->whereDate('created_at', today());
+            } elseif ($dateFilter === 'week') {
+                $favoritesQuery->where('created_at', '>=', now()->subWeek());
+            } elseif ($dateFilter === 'month') {
+                $favoritesQuery->where('created_at', '>=', now()->subMonth());
+            } elseif ($dateFilter === 'year') {
+                $favoritesQuery->where('created_at', '>=', now()->subYear());
+            }
+        }
+
         return Inertia::render('Dashboard', [
-            'favorites' => UserFavorite::where('user_id', $user->id)
-                ->with(['meal.ingredients', 'meal.steps'])
-                ->latest()
-                ->get(),
+            'favorites' => $favoritesQuery->latest()->get(),
             'userMeals' => Meal::where('user_id', $user->id)
                 ->where('source', 'USER')
                 ->with(['ingredients', 'steps'])
                 ->latest()
                 ->get(),
+            'dateFilter' => $request->input('date_filter', ''),
         ]);
     }
 
@@ -73,7 +88,7 @@ class UserContentController extends Controller
     /**
      * Fetch a random recipe from TheMealDB API.
      */
-    public function randomRecipe(MealDBService $mealDBService): Response
+    public function randomRecipe(Request $request, MealDBService $mealDBService): Response
     {
         $apiMeal = $mealDBService->fetchRandomMeal();
 
@@ -89,17 +104,33 @@ class UserContentController extends Controller
         // Format for display
         $formattedMeal = $mealDBService->formatMealForDisplay($apiMeal);
 
+        $user = Auth::user();
+        $favoritesQuery = UserFavorite::where('user_id', $user->id)
+            ->with(['meal.ingredients', 'meal.steps']);
+
+        // Filter by date if provided
+        if ($request->has('date_filter')) {
+            $dateFilter = $request->input('date_filter');
+            if ($dateFilter === 'today') {
+                $favoritesQuery->whereDate('created_at', today());
+            } elseif ($dateFilter === 'week') {
+                $favoritesQuery->where('created_at', '>=', now()->subWeek());
+            } elseif ($dateFilter === 'month') {
+                $favoritesQuery->where('created_at', '>=', now()->subMonth());
+            } elseif ($dateFilter === 'year') {
+                $favoritesQuery->where('created_at', '>=', now()->subYear());
+            }
+        }
+
         return Inertia::render('Dashboard', [
             'randomRecipe' => $formattedMeal,
-            'favorites' => UserFavorite::where('user_id', Auth::id())
-                ->with(['meal.ingredients', 'meal.steps'])
-                ->latest()
-                ->get(),
-            'userMeals' => Meal::where('user_id', Auth::id())
+            'favorites' => $favoritesQuery->latest()->get(),
+            'userMeals' => Meal::where('user_id', $user->id)
                 ->where('source', 'USER')
                 ->with(['ingredients', 'steps'])
                 ->latest()
                 ->get(),
+            'dateFilter' => $request->input('date_filter', ''),
         ]);
     }
 }
