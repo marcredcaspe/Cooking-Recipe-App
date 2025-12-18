@@ -54,6 +54,33 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+download and setup instructions:
+
+Clone the Repo: git clone YOUR_REPO_URL
+Navigate: cd your-recipe-app
+Install PHP/Laravel Dependencies: composer install
+Install JavaScript/Node Dependencies: npm install
+CopyEnvironment File: cp .env.example .env (Then configure database) see the following for reference:
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=cooking_recipe_database
+DB_USERNAME=root
+DB_PASSWORD=
+
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+Generate App Key: php artisan key:generate
+Run Migrations: php artisan migrate
+Start Servers: Run both php artisan serve and npm run dev in separate terminals.
+
+Note: you must create a database named "cooking_recipe_database" to be able to run the app. Xampp and phpmyadmin is recommended as it was the app used during testing.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
