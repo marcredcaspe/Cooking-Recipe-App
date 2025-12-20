@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -6,18 +6,17 @@ import {
   Sparkles, 
   Heart, 
   PlusCircle, 
-  Clock, 
   Filter,
-  Star,
   ChefHat,
   Flame,
   BookOpen,
   TrendingUp,
-  Calendar,
   X
 } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import route from '@/route';
+import ParticleScene from '@/Components/ParticleScene';
+
 
 export default function Dashboard({ auth, favorites, userMeals, flash, randomRecipe, dateFilter = '', favoriteSearch = '', recipeSearch = '', searchResults = [] }) {
     const { delete: destroy } = useForm();
@@ -27,6 +26,8 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
     const [favoriteSearchTerm, setFavoriteSearchTerm] = useState(favoriteSearch);
     const [recipeSearchTerm, setRecipeSearchTerm] = useState(recipeSearch);
     const [activeSection, setActiveSection] = useState('discover');
+    const fileInputRef = useRef(null);
+    const [imagePreview, setImagePreview] = useState(null);
 
     const recipeForm = useForm({
         title: '',
@@ -82,6 +83,10 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
             forceFormData: hasFile,
             onSuccess: () => {
                 recipeForm.reset();
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+                setImagePreview(null);
                 setShowRecipeForm(false);
             },
         });
@@ -154,21 +159,74 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
         return (now - date) < 7 * 24 * 60 * 60 * 1000; // Last 7 days
     }).length || 0;
 
+    // Visual-only: Container ref for animations
+    const containerRef = useRef(null);
+
+    // Visual-only: Animation variants for narrative-driven reveals
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+                delayChildren: 0.2
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                duration: 0.5,
+                ease: 'easeOut'
+            }
+        }
+    };
+
+    const cardVariants = {
+        hidden: { opacity: 0, scale: 0.9, y: 20 },
+        visible: {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transition: {
+                duration: 0.4,
+                ease: 'easeOut'
+            }
+        },
+        hover: {
+            scale: 1.03,
+            y: -5,
+            transition: {
+                duration: 0.2
+            }
+        }
+    };
+
+
     const NavigationPill = ({ id, icon: Icon, label, isActive, onClick }) => (
         <motion.button
             onClick={() => {
                 onClick();
                 document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
             }}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.08, y: -2 }}
             whileTap={{ scale: 0.95 }}
             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
                 isActive 
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg' 
-                : 'bg-white/10 text-white/80 hover:bg-white/20'
+                ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg' 
+                : 'bg-gray-100/80 text-gray-700 hover:bg-gray-200/80 border border-gray-200'
             }`}
         >
-            <Icon size={18} />
+            <motion.div
+                animate={isActive ? { rotate: [0, 10, -10, 0] } : {}}
+                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+            >
+                <Icon size={18} />
+            </motion.div>
             <span className="font-medium">{label}</span>
         </motion.button>
     );
@@ -177,34 +235,31 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
         <AuthenticatedLayout auth={auth} header="">
             <Head title="Dashboard" />
 
-            {/* Animated Background */}
-         <div className="fixed inset-0 -z-10">
-    {/* Gradient background */}
-    <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50" />
-
-    {/* SVG pattern overlay */}
-    <div
-        className="absolute inset-0"
-        style={{
-            backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3C/svg%3E')",
-        }}
-    />
-</div>
+            {/* Visual-only: Premium muted background */}
+            <div className="fixed inset-0 -z-10">
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-stone-50 to-neutral-50" />
+            </div>
 
 
 
-            <div className="min-h-screen">
+            {/* Visual-only: Enhanced main content area with premium muted gradient background */}
+            <div ref={containerRef} className="min-h-screen relative">
+                {/* Visual-only: Subtle animated gradient overlay for content area */}
+                <div className="fixed inset-0 -z-10 pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-50/90 via-stone-50/80 to-neutral-50/90"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/30 via-transparent to-white/10"></div>
+                </div>
                 {/* Floating Navigation */}
                 <motion.nav
                     initial={{ y: -100 }}
                     animate={{ y: 0 }}
-                    className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-orange-100 shadow-lg"
+                    className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-gray-200/80 shadow-lg"
                 >
                     <div className="max-w-7xl mx-auto px-4 py-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <ChefHat className="text-orange-600" size={24} />
-                                <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                                <ChefHat className="text-orange-700" size={24} />
+                                <span className="text-xl font-bold bg-gradient-to-r from-orange-700 to-amber-700 bg-clip-text text-transparent">
                                     Culinary Journey
                                 </span>
                             </div>
@@ -289,104 +344,155 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                     transition={{ duration: 0.6 }}
                     className="relative overflow-hidden"
                 >
-                    <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+                    {/* Subtle particles in hero section */}
+                    <div className="absolute inset-0 z-0 pointer-events-none">
+                        <ParticleScene interactive={false} />
+                    </div>
+                    <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8 relative z-10">
                         <div className="text-center">
                             <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                                className="inline-block p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl mb-6"
+                                className="inline-block p-3 bg-gradient-to-r from-orange-600 to-amber-600 rounded-2xl mb-6 shadow-lg"
                             >
                                 <ChefHat size={48} className="text-white" />
                             </motion.div>
                             <h1 className="text-5xl md:text-7xl font-bold mb-6">
-                                <span className="bg-gradient-to-r from-orange-600 via-amber-600 to-yellow-600 bg-clip-text text-transparent">
+                                <span className="bg-gradient-to-r from-orange-700 via-amber-700 to-orange-800 bg-clip-text text-transparent">
                                     Your Culinary Odyssey
                                 </span>
                             </h1>
-                            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+                            <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
                                 Embark on a journey of flavor discovery, creation, and mastery. 
                                 Every recipe tells a story—start writing yours.
                             </p>
                             
                             {/* Stats Cards */}
-                            <div className="flex flex-wrap justify-center gap-4 mb-12">
+                            <motion.div
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="flex flex-wrap justify-center gap-4 mb-12"
+                            >
                                 <motion.div
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                    className="bg-white rounded-xl p-4 shadow-lg border border-orange-100"
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.05, y: -5 }}
+                                    className="bg-white/90 rounded-xl p-4 shadow-lg border border-gray-200 backdrop-blur-sm hover:shadow-xl transition-shadow"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-orange-100 rounded-lg">
-                                            <BookOpen className="text-orange-600" size={20} />
+                                            <BookOpen className="text-orange-700" size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Recipes Created</p>
+                                            <p className="text-sm text-gray-600">Recipes Created</p>
                                             <p className="text-2xl font-bold text-gray-900">{totalRecipes}</p>
                                         </div>
                                     </div>
                                 </motion.div>
                                 
                                 <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.3 }}
-                                    className="bg-white rounded-xl p-4 shadow-lg border border-amber-100"
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.05, y: -5 }}
+                                    className="bg-white/90 rounded-xl p-4 shadow-lg border border-gray-200 backdrop-blur-sm hover:shadow-xl transition-shadow"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-amber-100 rounded-lg">
-                                            <Heart className="text-amber-600" size={20} />
+                                            <Heart className="text-amber-700" size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Favorites</p>
+                                            <p className="text-sm text-gray-600">Favorites</p>
                                             <p className="text-2xl font-bold text-gray-900">{totalFavorites}</p>
                                         </div>
                                     </div>
                                 </motion.div>
                                 
                                 <motion.div
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.4 }}
-                                    className="bg-white rounded-xl p-4 shadow-lg border border-yellow-100"
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.05, y: -5 }}
+                                    className="bg-white/90 rounded-xl p-4 shadow-lg border border-gray-200 backdrop-blur-sm hover:shadow-xl transition-shadow"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-yellow-100 rounded-lg">
-                                            <TrendingUp className="text-yellow-600" size={20} />
+                                        <div className="p-2 bg-orange-100 rounded-lg">
+                                            <TrendingUp className="text-orange-700" size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Recent Adds</p>
+                                            <p className="text-sm text-gray-600">Recent Adds</p>
                                             <p className="text-2xl font-bold text-gray-900">{recentlyAdded}</p>
                                         </div>
                                     </div>
                                 </motion.div>
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
                     
                     {/* Decorative Elements */}
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-orange-200 to-transparent rounded-full blur-3xl opacity-20" />
-                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-amber-200 to-transparent rounded-full blur-3xl opacity-20" />
+                    <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-orange-200/30 to-transparent rounded-full blur-3xl opacity-20" />
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-amber-200/30 to-transparent rounded-full blur-3xl opacity-20" />
                 </motion.section>
 
-                {/* Discover Recipes */}
-                <section id="discover" className="scroll-mt-24">
-                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+                {/* Discover Recipes - Chapter 1: Premium Darker Orange/Amber Theme */}
+                <section id="discover" className="scroll-mt-24 relative overflow-hidden">
+                    {/* Visual-only: Premium darker orange/amber background for discover section */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-200 via-amber-200 to-orange-200"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-orange-300/70 via-transparent to-amber-300/60"></div>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-orange-400/40 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-400/40 rounded-full blur-3xl"></div>
+                    {/* Infinite Scrolling Encouragement Text */}
+                    <div className="relative z-10 border-y border-orange-300/30 bg-orange-200/40 backdrop-blur-sm overflow-hidden">
+                        <div className="py-3">
+                            <motion.div
+                                className="flex whitespace-nowrap"
+                                animate={{
+                                    x: ["0%", "-50%"]
+                                }}
+                                transition={{
+                                    x: {
+                                        repeat: Infinity,
+                                        repeatType: "loop",
+                                        duration: 60,
+                                        ease: "linear"
+                                    }
+                                }}
+                            >
+                                {[...Array(2)].map((_, i) => (
+                                    <div key={i} className="flex items-center gap-8 px-8">
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">✨ Every recipe is a new adventure</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">🍳 Cook with passion, eat with joy</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">👨‍🍳 Your kitchen, your canvas</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">🌶️ Spice up your life, one dish at a time</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">🥘 Flavors that tell stories</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">🍽️ Discover, create, savor</span>
+                                        <span className="text-orange-600/40">•</span>
+                                        <span className="text-sm md:text-base text-orange-800/80 font-medium">🌟 Every meal is a masterpiece</span>
+                                        <span className="text-orange-600/40">•</span>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </div>
+                    </div>
+                    
+                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 relative z-10">
                         <motion.div
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
                             viewport={{ once: true }}
                             className="text-center mb-12"
                         >
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full mb-4">
-                                <Search size={16} className="text-orange-600" />
-                                <span className="text-sm font-medium text-orange-700">Chapter 1</span>
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full mb-4 border border-orange-200">
+                                <Search size={16} className="text-orange-700" />
+                                <span className="text-sm font-medium text-orange-800">Chapter 1</span>
                             </div>
                             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                                 Discover Hidden Gems
                             </h2>
-                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
                                 Unearth culinary treasures from around the world. Every search is an adventure.
                             </p>
                         </motion.div>
@@ -395,17 +501,30 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
+                            transition={{ duration: 0.6 }}
                             className="max-w-2xl mx-auto mb-12"
                         >
                             <form onSubmit={handleRecipeSearchSubmit} className="relative">
-                                <div className="relative">
-                                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                                    <input
+                                <motion.div
+                                    whileFocus={{ scale: 1.02 }}
+                                    className="relative"
+                                >
+                                    <motion.div
+                                        animate={recipeSearchTerm ? { scale: [1, 1.1, 1] } : {}}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                    </motion.div>
+                                    <motion.input
                                         type="text"
                                         value={recipeSearchTerm}
                                         onChange={(e) => setRecipeSearchTerm(e.target.value)}
                                         placeholder="What flavors are you craving today?"
-                                        className="w-full pl-12 pr-12 py-4 text-lg rounded-2xl border-2 border-orange-200 bg-white/50 backdrop-blur-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-all"
+                                        className="w-full pl-12 pr-12 py-4 text-lg rounded-2xl border-2 border-orange-200 bg-white/80 backdrop-blur-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-200 focus:outline-none transition-all"
+                                        whileFocus={{ 
+                                            scale: 1.02,
+                                            boxShadow: "0 0 20px rgba(249, 115, 22, 0.2)"
+                                        }}
                                     />
                                     {recipeSearchTerm && (
                                         <button
@@ -416,12 +535,12 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                             <X size={20} />
                                         </button>
                                     )}
-                                </div>
+                                </motion.div>
                                 <motion.button
                                     type="submit"
-                                    whileHover={{ scale: 1.02 }}
+                                    whileHover={{ scale: 1.05, y: -2 }}
                                     whileTap={{ scale: 0.98 }}
-                                    className="absolute right-2 top-2 px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:shadow-lg transition-shadow"
+                                    className="absolute right-2 top-2 px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:shadow-xl transition-shadow glow-orange"
                                 >
                                     Explore
                                 </motion.button>
@@ -444,15 +563,18 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                     </span>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <motion.div
+                                    variants={containerVariants}
+                                    initial="hidden"
+                                    animate="visible"
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                                >
                                     {searchResults.map((meal, index) => (
                                         <motion.div
                                             key={meal.meal_id}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: index * 0.1 }}
-                                            whileHover={{ y: -8 }}
-                                            className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100"
+                                            variants={cardVariants}
+                                            whileHover="hover"
+                                            className="group bg-gradient-to-br from-white to-orange-50/20 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 backdrop-blur-sm"
                                         >
                                             <div className="relative h-48 overflow-hidden">
                                                 {meal.thumbnail ? (
@@ -494,22 +616,31 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                             </div>
                                         </motion.div>
                                     ))}
-                                </div>
+                                </motion.div>
                             </motion.div>
                         )}
                     </div>
                 </section>
 
-                {/* Random Recipe & Creation */}
-                <div className="bg-gradient-to-b from-white to-orange-50">
-                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-                        <div className="grid lg:grid-cols-2 gap-12">
-                            {/* Surprise Me Section */}
-                            <section id="surprise" className="scroll-mt-24">
+                {/* Random Recipe & Creation - Mixed Theme Container */}
+                <div className="relative overflow-hidden">
+                    {/* Visual-only: Subtle background for container */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-gray-50/20 to-stone-50/15"></div>
+                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 relative z-10">
+                        <div className="grid lg:grid-cols-2 gap-12 items-start">
+                            {/* Surprise Me Section - Chapter 2: Premium Darker Purple/Pink Theme */}
+                            <section id="surprise" className="scroll-mt-24 relative overflow-hidden rounded-3xl p-8 self-start">
+                                {/* Visual-only: Premium darker purple/pink background */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-200 via-pink-200 to-rose-200 rounded-3xl"></div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-purple-300/70 via-transparent to-pink-300/60 rounded-3xl"></div>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-400/40 rounded-full blur-3xl"></div>
+                                <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-400/40 rounded-full blur-3xl"></div>
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     whileInView={{ opacity: 1 }}
                                     viewport={{ once: true }}
+                                    transition={{ duration: 0.6 }}
+                                    className="relative z-10"
                                 >
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl">
@@ -527,11 +658,16 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                     
                                     <motion.button
                                         onClick={handleGetRandomRecipe}
-                                        whileHover={{ scale: 1.02 }}
+                                        whileHover={{ scale: 1.05, y: -2 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center gap-3"
+                                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center gap-3 glow-purple"
                                     >
-                                        <Sparkles size={20} />
+                                        <motion.div
+                                            animate={{ rotate: [0, 10, -10, 0] }}
+                                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+                                        >
+                                            <Sparkles size={20} />
+                                        </motion.div>
                                         Reveal Your Culinary Destiny
                                     </motion.button>
 
@@ -543,7 +679,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                 exit={{ opacity: 0, height: 0 }}
                                                 className="mt-8"
                                             >
-                                                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-purple-100">
+                                                <div className="bg-gradient-to-br from-white to-purple-50/20 rounded-2xl shadow-xl overflow-hidden border border-purple-100 backdrop-blur-sm">
                                                     <div className="relative h-48 overflow-hidden">
                                                         {randomRecipe.thumbnail && (
                                                             <img
@@ -581,9 +717,9 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                             <motion.button
                                                                 onClick={handleAddRandomToFavorites}
                                                                 disabled={isAddingFavorite}
-                                                                whileHover={{ scale: isAddingFavorite ? 1 : 1.02 }}
-                                                                whileTap={{ scale: isAddingFavorite ? 1 : 0.98 }}
-                                                                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow flex items-center justify-center gap-2"
+                                                                whileHover={isAddingFavorite ? {} : { scale: 1.05, y: -2 }}
+                                                                whileTap={isAddingFavorite ? {} : { scale: 0.98 }}
+                                                                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow flex items-center justify-center gap-2 glow-purple"
                                                             >
                                                                 {isAddingFavorite ? (
                                                                     <>Adding to Treasure Chest...</>
@@ -614,12 +750,19 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                 </motion.div>
                             </section>
 
-                            {/* Create Recipe Section */}
-                            <section id="create" className="scroll-mt-24">
+                            {/* Create Recipe Section - Chapter 3: Premium Darker Blue/Cyan Theme */}
+                            <section id="create" className="scroll-mt-24 relative overflow-hidden rounded-3xl p-8 self-start">
+                                {/* Visual-only: Premium darker blue/cyan background */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-200 via-cyan-200 to-sky-200 rounded-3xl"></div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-blue-300/70 via-transparent to-cyan-300/60 rounded-3xl"></div>
+                                <div className="absolute top-0 left-0 w-64 h-64 bg-blue-400/40 rounded-full blur-3xl"></div>
+                                <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-400/40 rounded-full blur-3xl"></div>
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     whileInView={{ opacity: 1 }}
                                     viewport={{ once: true }}
+                                    transition={{ duration: 0.6 }}
+                                    className="relative z-10"
                                 >
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl">
@@ -638,11 +781,16 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                     {!showRecipeForm ? (
                                         <motion.button
                                             onClick={() => setShowRecipeForm(true)}
-                                            whileHover={{ scale: 1.02 }}
+                                            whileHover={{ scale: 1.05, y: -2 }}
                                             whileTap={{ scale: 0.98 }}
-                                            className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center gap-3"
+                                            className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center gap-3 glow-blue"
                                         >
-                                            <PlusCircle size={20} />
+                                            <motion.div
+                                                animate={{ rotate: [0, 90, 0] }}
+                                                transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
+                                            >
+                                                <PlusCircle size={20} />
+                                            </motion.div>
                                             Begin Your Masterpiece
                                         </motion.button>
                                     ) : (
@@ -650,12 +798,12 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             onSubmit={handleSubmitRecipe}
-                                            className="bg-white rounded-2xl shadow-xl p-6 border border-blue-100"
+                                            className="bg-gradient-to-br from-white to-blue-50/20 rounded-2xl shadow-xl p-6 border border-blue-100 backdrop-blur-sm"
                                         >
                                             <div className="space-y-4">
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                        Recipe Title
+                                                        Recipe Title <span className="text-red-500">*</span>
                                                     </label>
                                                     <input
                                                         type="text"
@@ -665,23 +813,175 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                         placeholder="Name your culinary creation"
                                                         required
                                                     />
+                                                    {recipeForm.errors.title && (
+                                                        <p className="mt-1 text-sm text-red-600">{recipeForm.errors.title}</p>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Ingredients <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <textarea
+                                                        value={recipeForm.data.ingredients}
+                                                        onChange={(e) => recipeForm.setData('ingredients', e.target.value)}
+                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all min-h-[120px] resize-y"
+                                                        placeholder={`Enter one ingredient per line
+e.g.
+2 cups flour
+1 tsp salt
+3 eggs`}
+                                                        required
+                                                    />
+                                                    {recipeForm.errors.ingredients && (
+                                                        <p className="mt-1 text-sm text-red-600">{recipeForm.errors.ingredients}</p>
+                                                    )}
+                                                    <p className="mt-1 text-xs text-gray-500">Enter one ingredient per line.</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Cooking Steps <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <textarea
+                                                        value={recipeForm.data.steps}
+                                                        onChange={(e) => recipeForm.setData('steps', e.target.value)}
+                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all min-h-[120px] resize-y"
+                                                        placeholder={`Enter one step per line
+e.g.
+Preheat oven to 375°F
+Mix dry ingredients in a bowl
+Add wet ingredients and stir`}
+                                                        required
+                                                    />
+                                                    {recipeForm.errors.steps && (
+                                                        <p className="mt-1 text-sm text-red-600">{recipeForm.errors.steps}</p>
+                                                    )}
+                                                    <p className="mt-1 text-xs text-gray-500">Enter one step per line.</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Recipe Image (Optional)
+                                                    </label>
+                                                    <div className="space-y-2">
+                                                        <input
+                                                            ref={fileInputRef}
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    recipeForm.setData('thumbnail', file);
+                                                                    // Create preview URL
+                                                                    const reader = new FileReader();
+                                                                    reader.onloadend = () => {
+                                                                        setImagePreview(reader.result);
+                                                                    };
+                                                                    reader.readAsDataURL(file);
+                                                                    // Clear thumbnail_url if file is selected
+                                                                    if (recipeForm.data.thumbnail_url) {
+                                                                        recipeForm.setData('thumbnail_url', '');
+                                                                    }
+                                                                } else {
+                                                                    recipeForm.setData('thumbnail', null);
+                                                                    setImagePreview(null);
+                                                                }
+                                                            }}
+                                                            className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all text-sm"
+                                                        />
+                                                        {imagePreview && (
+                                                            <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                                                <img 
+                                                                    src={imagePreview} 
+                                                                    alt="Preview" 
+                                                                    className="w-full h-48 object-cover rounded-lg mb-2"
+                                                                />
+                                                                {recipeForm.data.thumbnail instanceof File && (
+                                                                    <>
+                                                                        <p className="text-sm text-blue-700 font-medium mb-1">Selected: {recipeForm.data.thumbnail.name}</p>
+                                                                        <p className="text-xs text-blue-600">{(recipeForm.data.thumbnail.size / 1024).toFixed(2)} KB</p>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {recipeForm.data.thumbnail instanceof File && !imagePreview && (
+                                                            <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                                                <p className="text-sm text-blue-700 font-medium mb-1">Selected: {recipeForm.data.thumbnail.name}</p>
+                                                                <p className="text-xs text-blue-600">{(recipeForm.data.thumbnail.size / 1024).toFixed(2)} KB</p>
+                                                            </div>
+                                                        )}
+                                                        {recipeForm.errors.thumbnail && (
+                                                            <p className="mt-1 text-sm text-red-600">{recipeForm.errors.thumbnail}</p>
+                                                        )}
+                                                        <p className="text-xs text-gray-500">Or provide an image URL below</p>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Image URL (Optional)
+                                                    </label>
+                                                    <input
+                                                        type="url"
+                                                        value={recipeForm.data.thumbnail_url}
+                                                        onChange={(e) => {
+                                                            recipeForm.setData('thumbnail_url', e.target.value);
+                                                            // Clear thumbnail file and preview if URL is provided
+                                                            if (e.target.value) {
+                                                                if (recipeForm.data.thumbnail instanceof File) {
+                                                                    recipeForm.setData('thumbnail', null);
+                                                                }
+                                                                setImagePreview(null);
+                                                                if (fileInputRef.current) {
+                                                                    fileInputRef.current.value = '';
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
+                                                        placeholder="https://example.com/image.jpg"
+                                                    />
+                                                    {recipeForm.errors.thumbnail_url && (
+                                                        <p className="mt-1 text-sm text-red-600">{recipeForm.errors.thumbnail_url}</p>
+                                                    )}
                                                 </div>
                                                 
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <button
+                                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                                    <motion.button
                                                         type="submit"
                                                         disabled={recipeForm.processing}
-                                                        className="col-span-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow"
+                                                        whileHover={recipeForm.processing ? {} : { scale: 1.02, y: -2 }}
+                                                        whileTap={recipeForm.processing ? {} : { scale: 0.98 }}
+                                                        className="col-span-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed glow-blue"
                                                     >
-                                                        {recipeForm.processing ? 'Crafting...' : 'Create Recipe'}
-                                                    </button>
-                                                    <button
+                                                        {recipeForm.processing ? (
+                                                            <span className="flex items-center justify-center gap-2">
+                                                                <motion.span
+                                                                    animate={{ rotate: 360 }}
+                                                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                                                >
+                                                                    ⚙️
+                                                                </motion.span>
+                                                                Crafting...
+                                                            </span>
+                                                        ) : 'Create Recipe'}
+                                                    </motion.button>
+                                                    <motion.button
                                                         type="button"
-                                                        onClick={() => setShowRecipeForm(false)}
+                                                        onClick={() => {
+                                                            recipeForm.reset();
+                                                            if (fileInputRef.current) {
+                                                                fileInputRef.current.value = '';
+                                                            }
+                                                            setImagePreview(null);
+                                                            setShowRecipeForm(false);
+                                                        }}
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
                                                         className="col-span-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
                                                     >
                                                         Cancel
-                                                    </button>
+                                                    </motion.button>
                                                 </div>
                                             </div>
                                         </motion.form>
@@ -700,9 +1000,15 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                     </div>
                 </div>
 
-                {/* My Recipes */}
-                <section id="my-recipes" className="scroll-mt-24 bg-white">
-                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+                {/* My Recipes - Chapter 4: Premium Darker Green/Emerald Theme */}
+                <section id="my-recipes" className="scroll-mt-24 relative overflow-hidden">
+                    {/* Visual-only: Premium darker green/emerald background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-200 via-emerald-200 to-teal-200"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-green-300/70 via-transparent to-emerald-300/60"></div>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-green-400/40 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-400/40 rounded-full blur-3xl"></div>
+                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 relative z-10">
                         <motion.div
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
@@ -722,15 +1028,18 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                             </div>
                             
                             {userMeals && userMeals.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <motion.div
+                                    variants={containerVariants}
+                                    initial="hidden"
+                                    whileInView="visible"
+                                    viewport={{ once: true }}
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                                >
                                     {userMeals.map((meal, index) => (
                                         <motion.div
                                             key={meal.meal_id}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: index * 0.1 }}
-                                            whileHover={{ y: -8 }}
+                                            variants={cardVariants}
+                                            whileHover="hover"
                                             className="group bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-green-100"
                                         >
                                             <div className="p-6">
@@ -747,17 +1056,24 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                     {meal.title}
                                                 </h3>
                                                 
-                                                <Link
-                                                    href={route('meal.details', meal.meal_id)}
-                                                    className="inline-flex items-center gap-2 text-green-600 font-medium hover:text-green-700 transition-colors"
-                                                >
-                                                    View Masterpiece
-                                                    <Flame size={16} />
-                                                </Link>
+                                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                                    <Link
+                                                        href={route('meal.details', meal.meal_id)}
+                                                        className="inline-flex items-center gap-2 text-green-600 font-medium hover:text-green-700 transition-colors"
+                                                    >
+                                                        View Masterpiece
+                                                        <motion.span
+                                                            animate={{ rotate: [0, 10, -10, 0] }}
+                                                            transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
+                                                        >
+                                                            <Flame size={16} />
+                                                        </motion.span>
+                                                    </Link>
+                                                </motion.div>
                                             </div>
                                         </motion.div>
                                     ))}
-                                </div>
+                                </motion.div>
                             ) : (
                                 <div className="text-center py-12">
                                     <div className="inline-block p-8 bg-gradient-to-r from-green-100 to-emerald-100 rounded-3xl mb-6">
@@ -771,9 +1087,9 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                     </p>
                                     <motion.button
                                         onClick={() => setShowRecipeForm(true)}
-                                        whileHover={{ scale: 1.02 }}
+                                        whileHover={{ scale: 1.05, y: -2 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-xl hover:shadow-lg transition-shadow"
+                                        className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-xl hover:shadow-lg transition-shadow glow-green"
                                     >
                                         Begin Your First Chapter
                                     </motion.button>
@@ -783,9 +1099,23 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                     </div>
                 </section>
 
-                {/* My Favorites */}
-                <section id="favorites" className="scroll-mt-24 bg-gradient-to-b from-white to-rose-50">
-                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+                {/* My Favorites - Chapter 5: Premium Darker Rose/Pink Theme */}
+                <section id="favorites" className="scroll-mt-24 relative overflow-hidden">
+                    {/* Visual-only: Premium darker rose/pink background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-rose-200 via-pink-200 to-fuchsia-200"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-rose-300/70 via-transparent to-pink-300/60"></div>
+                    {/* Decorative elements */}
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-rose-400/40 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-pink-400/40 rounded-full blur-3xl"></div>
+                    {/* Visual-only: Subtle pattern */}
+                    <div 
+                        className="absolute inset-0 opacity-5 z-0"
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ec4899' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                            backgroundSize: '60px 60px'
+                        }}
+                    ></div>
+                    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8 relative z-10">
                         <motion.div
                             initial={{ opacity: 0 }}
                             whileInView={{ opacity: 1 }}
@@ -806,7 +1136,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                             
                             {/* Search and Filter */}
                             <div className="max-w-2xl mx-auto mb-12">
-                                <div className="bg-white rounded-2xl shadow-lg p-4">
+                                <div className="bg-gradient-to-br from-white to-rose-50/20 rounded-2xl shadow-lg p-4 backdrop-blur-sm">
                                     <div className="flex flex-col md:flex-row gap-4">
                                         <div className="flex-1">
                                             <form onSubmit={handleFavoriteSearchSubmit}>
@@ -852,16 +1182,19 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                             
                             {/* Favorites Grid */}
                             {favorites && favorites.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <motion.div
+                                    variants={containerVariants}
+                                    initial="hidden"
+                                    whileInView="visible"
+                                    viewport={{ once: true }}
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                                >
                                     {favorites.map((favorite, index) => (
                                         <motion.div
                                             key={favorite.meal_id}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            whileInView={{ opacity: 1, y: 0 }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: index * 0.1 }}
-                                            whileHover={{ y: -8 }}
-                                            className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-rose-100 relative"
+                                            variants={cardVariants}
+                                            whileHover="hover"
+                                            className="group bg-gradient-to-br from-white to-rose-50/20 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-rose-100 relative backdrop-blur-sm"
                                         >
                                             <div className="absolute top-4 right-4">
                                                 <button
@@ -874,9 +1207,13 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                             
                                             <div className="p-6">
                                                 <div className="flex items-center gap-3 mb-4">
-                                                    <div className="p-2 bg-rose-100 rounded-lg">
+                                                    <motion.div 
+                                                        className="p-2 bg-rose-100 rounded-lg"
+                                                        whileHover={{ scale: 1.2, rotate: [0, -10, 10, -10, 0] }}
+                                                        transition={{ duration: 0.5 }}
+                                                    >
                                                         <Heart className="text-rose-600" size={20} />
-                                                    </div>
+                                                    </motion.div>
                                                     <div>
                                                         <h3 className="font-bold text-gray-900 line-clamp-2">
                                                             {favorite.meal?.title || 'Unknown Recipe'}
@@ -888,17 +1225,19 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                                                 </div>
                                                 
                                                 <div className="flex gap-2">
-                                                    <Link
-                                                        href={route('meal.details', favorite.meal_id)}
-                                                        className="flex-1 text-center py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow"
-                                                    >
-                                                        Revisit
-                                                    </Link>
+                                                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
+                                                        <Link
+                                                            href={route('meal.details', favorite.meal_id)}
+                                                            className="flex-1 text-center py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium rounded-lg hover:shadow-lg transition-shadow block"
+                                                        >
+                                                            Revisit
+                                                        </Link>
+                                                    </motion.div>
                                                 </div>
                                             </div>
                                         </motion.div>
                                     ))}
-                                </div>
+                                </motion.div>
                             ) : (
                                 <div className="text-center py-12">
                                     <div className="inline-block p-8 bg-gradient-to-r from-rose-100 to-pink-100 rounded-3xl mb-6">
@@ -917,7 +1256,7 @@ export default function Dashboard({ auth, favorites, userMeals, flash, randomRec
                 </section>
 
                 {/* Final Chapter */}
-                <section className="bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500">
+                <section className="bg-gradient-to-br from-orange-600 via-amber-600 to-orange-700">
                     <div className="max-w-7xl mx-auto px-4 py-20 sm:px-6 lg:px-8">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
